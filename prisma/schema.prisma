@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  CUSTOMER
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  WAITING_CONFIRMATION
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(CUSTOMER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  events    Event[]
+  orders    Order[]
+
+  @@index([deletedAt])
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  title         String
+  slug          String      @unique
+  description   String      @db.Text
+  location      String
+  provinceCode  String
+  province      String
+  regencyCode   String
+  regency       String
+  regencyType   String      @default("")
+  addressDetail String      @default("")
+  category      String      @default("general")
+  startDate     DateTime
+  endDate       DateTime
+  bannerUrl     String?
+  price         Decimal     @db.Decimal(12, 2)
+  quota         Int
+  status        EventStatus @default(DRAFT)
+  deletedAt     DateTime?
+  adminId       String
+  admin         User        @relation(fields: [adminId], references: [id])
+  orders        Order[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status, endDate])
+  @@index([adminId, status])
+  @@index([provinceCode])
+  @@index([regencyCode])
+  @@index([deletedAt])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderCode     String      @unique
+  userId        String
+  eventId       String
+  quantity      Int
+  totalPrice    Decimal     @db.Decimal(12, 2)
+  status        OrderStatus @default(PENDING_PAYMENT)
+  proofImageUrl String?
+  rejectionNote String?
+  reuploadCount Int       @default(0)
+  expiresAt     DateTime
+  user          User        @relation(fields: [userId], references: [id])
+  event         Event       @relation(fields: [eventId], references: [id])
+  tickets       Ticket[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+
+  @@index([status])
+  @@index([eventId, status])
+  @@index([userId, status])
+  @@index([deletedAt])
+}
+
+model Ticket {
+  id         String    @id @default(cuid())
+  ticketCode String    @unique
+  orderId    String
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  qrCodeUrl  String?
+  isUsed     Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  @@index([orderId])
+  @@index([deletedAt])
+}
